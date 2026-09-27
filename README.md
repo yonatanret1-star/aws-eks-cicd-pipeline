@@ -559,7 +559,10 @@ Kubernetes Deployment
 AWS Application Load Balancer
 ```
 
-A Jenkins pipeline success screenshot can be added after the complete CI/CD pipeline test is finished.
+The Jenkins pipeline completed successfully, including Docker build, ECR push, EKS configuration, Helm deployment, and deployment verification.
+### Jenkins Pipeline Success
+
+![Jenkins Pipeline Success](screenshots/jenkins-pipeline-success.png)
 
 # Verification Commands
 
