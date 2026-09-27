@@ -1,0 +1,13 @@
+# Node
+node_modules/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+*.tfplan
+
+# macOS
+.DS_Store
