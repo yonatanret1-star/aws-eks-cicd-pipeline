@@ -1,0 +1,68 @@
+name: GitOps CI
+
+on:
+  push:
+    branches:
+      - gitops
+    paths:
+      - "app/**"
+      - "helm/**"
+      - ".github/workflows/gitops-ci.yml"
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "678817681968"
+  ECR_REPOSITORY: aws-eks-cicd-pipeline
+  ECR_REGISTRY: 678817681968.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  build-and-update-gitops:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: gitops
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::678817681968:role/GitHubActionsECRRole
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            ./app
+
+      - name: Push Docker image
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Update Helm image tag
+        run: |
+          sed -i "s/^  tag: .*/  tag: $IMAGE_TAG/" helm/hello-world/values.yaml
+
+      - name: Commit GitOps image update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add helm/hello-world/values.yaml
+
+          git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
+
+          git push origin gitops
