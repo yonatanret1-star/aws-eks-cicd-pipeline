@@ -12,7 +12,7 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:yonatanret1-star/aws-eks-cicd-pipeline:*"
+          "token.actions.githubusercontent.com:sub": "repo:yonatanret1-star@317406001/aws-eks-cicd-pipeline@1391186295:ref:refs/heads/gitops"
         }
       }
     }
