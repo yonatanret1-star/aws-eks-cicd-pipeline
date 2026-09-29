@@ -1,88 +1,132 @@
-# AWS EKS CI/CD Pipeline
-
-This project deploys a containerized Node.js application to Amazon EKS using Docker, Amazon ECR, Terraform, Helm, Kubernetes autoscaling, an AWS Application Load Balancer, and Jenkins CI/CD.
+# AWS EKS CI/CD and GitOps Pipeline
 
 ## Project Overview
 
-The application is a simple Node.js and Express web application that displays:
+This project demonstrates an end-to-end containerized application deployment on AWS using Amazon EKS, Terraform, Docker, Amazon ECR, Helm, Kubernetes autoscaling, Jenkins CI/CD, GitHub Actions, and Argo CD.
+
+The project implements two deployment approaches:
+
+1. **Jenkins CI/CD**
+   - Jenkins builds the Docker image.
+   - Jenkins pushes the image to Amazon ECR.
+   - Jenkins deploys the application to Amazon EKS using Helm.
+
+2. **GitOps with GitHub Actions and Argo CD**
+   - GitHub Actions builds and pushes the Docker image to Amazon ECR.
+   - GitHub Actions updates the Helm image tag in the `gitops` branch.
+   - Argo CD monitors the `gitops` branch.
+   - Argo CD automatically synchronizes the desired state from Git to Amazon EKS.
+
+The application is exposed publicly using an AWS Application Load Balancer.
+
+---
+
+# Architecture
+
+```text
+                         GitHub Repository
+                               |
+              +----------------+----------------+
+              |                                 |
+              |                                 |
+         Jenkins CI/CD                    GitOps Workflow
+              |                                 |
+              |                          GitHub Actions
+              |                                 |
+        Build Docker Image                Build Docker Image
+              |                                 |
+              +--------------+------------------+
+                             |
+                         Amazon ECR
+                             |
+                +------------+------------+
+                |                         |
+              Helm                  Update Helm Tag
+                |                         |
+                |                    gitops Branch
+                |                         |
+                |                      Argo CD
+                |                         |
+                +------------+------------+
+                             |
+                         Amazon EKS
+                             |
+                    Kubernetes Deployment
+                             |
+                   Horizontal Pod Autoscaler
+                             |
+                     Cluster Autoscaler
+                             |
+               AWS Application Load Balancer
+                             |
+                      Public Application
+```
+
+---
+
+# Technologies Used
+
+- AWS
+- Amazon EKS
+- Amazon ECR
+- Amazon EC2
+- AWS Application Load Balancer
+- AWS IAM
+- AWS IAM OIDC
+- Terraform
+- Kubernetes
+- Helm
+- Docker
+- Node.js
+- Express
+- Jenkins
+- GitHub Actions
+- Argo CD
+- Git
+- GitHub
+
+---
+
+# Application
+
+The project contains a simple Node.js Express application.
+
+The application runs on:
+
+```text
+Port 3000
+```
+
+The original application returned:
 
 ```text
 Hello, World!
 ```
 
-The project demonstrates a cloud deployment workflow that includes:
-
-- Application development with Node.js
-- Docker containerization
-- Amazon ECR image storage
-- Infrastructure as Code with Terraform
-- Kubernetes orchestration with Amazon EKS
-- Helm-based application deployment
-- Horizontal Pod Autoscaling
-- EKS worker node autoscaling
-- Public access through an AWS Application Load Balancer
-- Jenkins CI/CD automation
-
-## Technologies Used
-
-- AWS
-- Amazon EKS
-- Amazon ECR
-- EC2
-- AWS Application Load Balancer
-- Terraform
-- Docker
-- Kubernetes
-- Helm
-- Jenkins
-- Node.js
-- Express
-- GitHub
-
-## Architecture
+The GitOps deployment test updated the application to:
 
 ```text
-Developer
-    |
-    v
-GitHub Repository
-    |
-    v
-Jenkins CI/CD
-    |
-    +--> Build Docker Image
-    |
-    +--> Push Image to Amazon ECR
-    |
-    +--> Deploy with Helm
-    |
-    v
-Amazon EKS
-    |
-    +--> Kubernetes Deployment
-    |
-    +--> Horizontal Pod Autoscaler
-    |
-    +--> Cluster Autoscaler
-    |
-    v
-AWS Application Load Balancer
-    |
-    v
-Public Hello World Application
+Hello from GitOps!
 ```
 
-## Project Structure
+This change was used to verify that GitHub Actions and Argo CD could deploy a new application version automatically.
+
+---
+
+# Project Structure
 
 ```text
 aws-eks-cicd-pipeline/
-├── Jenkinsfile
-├── README.md
+├── .github/
+│   └── workflows/
+│       └── gitops-ci.yml
+│
 ├── app/
 │   ├── server.js
 │   ├── package.json
 │   ├── package-lock.json
 │   └── Dockerfile
+│
 ├── terraform/
 │   ├── provider.tf
 │   ├── variables.tf
@@ -90,6 +134,7 @@ aws-eks-cicd-pipeline/
 │   ├── eks.tf
 │   ├── ecr.tf
 │   └── outputs.tf
+│
 ├── helm/
 │   └── hello-world/
 │       ├── Chart.yaml
@@ -99,20 +144,32 @@ aws-eks-cicd-pipeline/
 │           ├── service.yaml
 │           ├── ingress.yaml
 │           └── hpa.yaml
+│
+├── screenshots/
+│
+├── Jenkinsfile
 ├── cluster-autoscaler-policy.json
+├── github-actions-policy.json
+├── github-actions-trust-policy.json
 ├── iam_policy.json
-└── screenshots/
+├── .gitignore
+└── README.md
 ```
+
+---
 
 # Local Application
 
-The application is built with Node.js and Express and listens on port `3000`.
-
-Run the application locally:
+Install the Node.js dependencies:
 
 ```bash
 cd app
 npm install
+```
+
+Start the application:
+
+```bash
 npm start
 ```
 
@@ -122,19 +179,7 @@ Open:
 http://localhost:3000
 ```
 
-Expected output:
-
-```text
-Hello, World!
-```
-
-### Node.js Application Running
-
-![Node Application Running](screenshots/npm-start-success.png)
-
-### Local Application
-
-![Hello World Localhost](screenshots/hello-world-localhost.png)
+---
 
 # Docker
 
@@ -158,87 +203,28 @@ Verify the running container:
 docker ps
 ```
 
-### Docker Container Running
-
-![Docker Container Running](screenshots/docker-container-running.png)
-
-### Dockerized Application
-
-![Hello World Docker Browser](screenshots/hello-world-docker-browser.png)
-
-For the EKS deployment, the image was built for the Linux AMD64 platform:
-
-```bash
-docker buildx build \
-  --platform linux/amd64 \
-  -t 678817681968.dkr.ecr.us-east-1.amazonaws.com/aws-eks-cicd-pipeline:latest \
-  --push \
-  ./app
-```
-
-# GitHub Repository
-
-The project is version controlled using Git and stored in a private GitHub repository.
-
-Repository name:
+The containerized application can then be accessed at:
 
 ```text
-aws-eks-cicd-pipeline
+http://localhost:3000
 ```
 
-### GitHub Repository
+---
 
-![GitHub Repository](screenshots/github-repository-initial-push.png)
+# Infrastructure as Code with Terraform
 
-# Amazon ECR
+Terraform is used to provision the core AWS infrastructure.
 
-Amazon Elastic Container Registry is used to store the Docker images.
-
-ECR repository:
-
-```text
-aws-eks-cicd-pipeline
-```
-
-Authenticate Docker to ECR:
-
-```bash
-aws ecr get-login-password --region us-east-1 \
-| docker login \
-  --username AWS \
-  --password-stdin \
-  678817681968.dkr.ecr.us-east-1.amazonaws.com
-```
-
-Push the image:
-
-```bash
-docker push \
-678817681968.dkr.ecr.us-east-1.amazonaws.com/aws-eks-cicd-pipeline:latest
-```
-
-### Docker Image Push to ECR
-
-![ECR Docker Push](screenshots/ecr-docker-push-success.png)
-
-### ECR Repository Image
-
-![ECR Repository Image](screenshots/ecr-repository-image.png)
-
-# Terraform Infrastructure
-
-Terraform is used to provision the AWS infrastructure.
-
-The Terraform configuration creates:
+Terraform creates:
 
 - VPC
 - Public subnets
 - Internet Gateway
 - Route tables
-- Amazon EKS cluster
+- EKS cluster
 - EKS managed node group
+- IAM roles
 - Amazon ECR repository
-- IAM roles and policies
 
 Initialize Terraform:
 
@@ -247,7 +233,7 @@ cd terraform
 terraform init
 ```
 
-Format the configuration:
+Format the Terraform configuration:
 
 ```bash
 terraform fmt
@@ -259,47 +245,44 @@ Validate the configuration:
 terraform validate
 ```
 
-Review the deployment plan:
+Preview infrastructure changes:
 
 ```bash
 terraform plan
 ```
 
-Create the infrastructure:
+Create the AWS infrastructure:
 
 ```bash
 terraform apply
 ```
 
+---
+
 # Amazon EKS
 
-The Amazon EKS cluster is named:
+The EKS cluster is named:
 
 ```text
 aws-eks-cicd-cluster
 ```
 
-The managed node group is:
+The managed node group is named:
 
 ```text
 application-nodes
 ```
 
-Worker node instance type:
+Worker node configuration:
 
 ```text
-t3.small
+Instance Type: t3.small
+Minimum Nodes: 1
+Desired Nodes: 1
+Maximum Nodes: 4
 ```
 
-Node group scaling configuration:
-
-```text
-Minimum nodes: 1
-Desired nodes: 1
-Maximum nodes: 4
-```
-
-Configure local kubectl access:
+Connect kubectl to the cluster:
 
 ```bash
 aws eks update-kubeconfig \
@@ -313,9 +296,59 @@ Verify the worker nodes:
 kubectl get nodes
 ```
 
+---
+
+# Amazon ECR
+
+The ECR repository is:
+
+```text
+aws-eks-cicd-pipeline
+```
+
+Authenticate Docker to Amazon ECR:
+
+```bash
+aws ecr get-login-password --region us-east-1 \
+| docker login \
+  --username AWS \
+  --password-stdin \
+  678817681968.dkr.ecr.us-east-1.amazonaws.com
+```
+
+Build and push the application image:
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t 678817681968.dkr.ecr.us-east-1.amazonaws.com/aws-eks-cicd-pipeline:latest \
+  --push \
+  ./app
+```
+
+---
+
 # Helm Deployment
 
-Helm is used to deploy and manage the application inside Amazon EKS.
+Helm is used to package and deploy the Kubernetes application.
+
+The Helm chart is located at:
+
+```text
+helm/hello-world
+```
+
+Validate the chart:
+
+```bash
+helm lint ./helm/hello-world
+```
+
+Render the Kubernetes manifests:
+
+```bash
+helm template hello-world ./helm/hello-world
+```
 
 Deploy the application:
 
@@ -323,29 +356,54 @@ Deploy the application:
 helm upgrade --install hello-world ./helm/hello-world
 ```
 
-Verify the application pod:
+Verify the deployment:
 
 ```bash
 kubectl get pods
 ```
 
-Verify the Kubernetes service:
+---
 
-```bash
-kubectl get service
+# Kubernetes Resources
+
+The Helm chart manages:
+
+- Deployment
+- Service
+- Ingress
+- Horizontal Pod Autoscaler
+
+The Node.js application runs on container port:
+
+```text
+3000
 ```
+
+The Kubernetes Service exposes:
+
+```text
+Port 80
+```
+
+and forwards traffic to:
+
+```text
+Port 3000
+```
+
+---
 
 # Horizontal Pod Autoscaler
 
-The application uses Kubernetes Horizontal Pod Autoscaler to scale application pods based on CPU and memory utilization.
+The HPA automatically changes the number of application pods based on resource usage.
 
 Configuration:
 
 ```text
-Minimum replicas: 1
-Maximum replicas: 12
-CPU target: 50%
-Memory target: 50%
+Minimum Pods: 1
+Maximum Pods: 12
+CPU Target: 50%
+Memory Target: 50%
 ```
 
 Verify the HPA:
@@ -354,39 +412,43 @@ Verify the HPA:
 kubectl get hpa
 ```
 
-During testing, the HPA successfully reported CPU and memory utilization for the application.
+Metrics Server provides CPU and memory data to the HPA.
 
-### HPA Working
+Verify metrics:
 
-![HPA Working](screenshots/hpa-working.png)
+```bash
+kubectl top nodes
+```
+
+```bash
+kubectl top pods
+```
+
+---
 
 # Cluster Autoscaler
 
-Cluster Autoscaler is used to automatically change the number of EKS worker nodes when additional Kubernetes capacity is required.
+Cluster Autoscaler allows the EKS node group to automatically increase or decrease worker-node capacity when Kubernetes requires additional resources.
 
-The EKS node group is configured with:
+Node scaling limits:
 
 ```text
-Minimum nodes: 1
-Maximum nodes: 4
+Minimum Nodes: 1
+Desired Nodes: 1
+Maximum Nodes: 4
 ```
 
-The required Auto Scaling Group tags are:
+The node group contains the Cluster Autoscaler discovery tags:
 
 ```text
 k8s.io/cluster-autoscaler/enabled = true
+
 k8s.io/cluster-autoscaler/aws-eks-cicd-cluster = owned
 ```
 
-Cluster Autoscaler uses IAM permissions through a Kubernetes service account and IAM Roles for Service Accounts.
+IAM Roles for Service Accounts were used so Cluster Autoscaler could securely access AWS Auto Scaling APIs.
 
-Verify Cluster Autoscaler:
-
-```bash
-kubectl get pods -n kube-system | grep cluster-autoscaler
-```
-
-A temporary deployment was created with resource requests large enough that all pods could not fit on the original `t3.small` worker node.
+The autoscaler was tested with a temporary workload containing multiple resource-intensive pods.
 
 The cluster automatically scaled from:
 
@@ -400,45 +462,19 @@ to:
 3 worker nodes
 ```
 
-### Cluster Autoscaler Scale Out
+The test pods were successfully distributed across the additional worker nodes.
 
-![Cluster Autoscaler Scale Out](screenshots/cluster-autoscaler-scale-out.png)
+The temporary workload was deleted after testing.
 
-The test pods were then distributed across the available worker nodes.
-
-### Pods Distributed Across Worker Nodes
-
-![Cluster Autoscaler Pods Distributed](screenshots/cluster-autoscaler-pods-distributed.png)
-
-After the test, the temporary workload was removed:
-
-```bash
-kubectl delete deployment autoscaler-test
-```
+---
 
 # AWS Load Balancer Controller
 
-The AWS Load Balancer Controller is installed in the EKS cluster to manage AWS Application Load Balancers for Kubernetes Ingress resources.
+AWS Load Balancer Controller is installed in the EKS cluster.
 
-Verify the controller:
+The controller uses an IAM service account to manage AWS load balancer resources.
 
-```bash
-kubectl get deployment \
-  -n kube-system \
-  aws-load-balancer-controller
-```
-
-The controller runs with two replicas:
-
-```text
-READY 2/2
-```
-
-# Application Load Balancer
-
-The application is exposed publicly through an AWS Application Load Balancer.
-
-The Kubernetes Ingress is configured with:
+The Helm Ingress contains:
 
 ```text
 Ingress Class: alb
@@ -446,247 +482,521 @@ Scheme: internet-facing
 Target Type: ip
 ```
 
-Verify the ingress:
+This creates an AWS Application Load Balancer and routes public traffic to the Kubernetes application.
+
+Verify the Ingress:
 
 ```bash
 kubectl get ingress
 ```
 
-View detailed ingress information:
+Retrieve the public ALB hostname:
 
 ```bash
-kubectl describe ingress hello-world
+kubectl get ingress hello-world \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 ```
 
-Traffic flow:
+---
+
+# Jenkins CI/CD Pipeline
+
+Jenkins provides the first CI/CD implementation for this project.
+
+The Jenkins pipeline is defined in:
 
 ```text
-Internet
-    |
-    v
-AWS Application Load Balancer
-    |
-    v
-Kubernetes Ingress
-    |
-    v
-hello-world Service :80
-    |
-    v
-Node.js Container :3000
+Jenkinsfile
 ```
 
-### ALB Ingress
+The pipeline performs the following stages:
 
-![ALB Ingress Success](screenshots/alb-ingress-success.png)
-
-The application is publicly accessible through the generated AWS Application Load Balancer hostname.
-
-### Public Application
-
-![Public Hello World](screenshots/hello-world-alb-public-url.png)
-
-# Jenkins CI/CD
-
-Jenkins is used to automate the application build and deployment process.
-
-The Jenkins pipeline is configured to perform the following stages:
-
-1. Checkout source code from GitHub
-2. Build the Docker image
-3. Authenticate to Amazon ECR
-4. Push the Docker image to Amazon ECR
-5. Configure access to Amazon EKS
-6. Deploy the application using Helm
-7. Verify the Kubernetes rollout
+```text
+Checkout
+↓
+Build Docker Image
+↓
+Login to Amazon ECR
+↓
+Push Image to Amazon ECR
+↓
+Configure Amazon EKS
+↓
+Deploy with Helm
+↓
+Verify Deployment
+```
 
 Each Jenkins build uses the Jenkins build number as the Docker image tag.
 
 Example:
 
 ```text
-aws-eks-cicd-pipeline:1
-aws-eks-cicd-pipeline:2
-aws-eks-cicd-pipeline:3
+Jenkins Build #4
+↓
+aws-eks-cicd-pipeline:4
 ```
 
-The Jenkins environment contains:
-
-- Docker CLI
-- AWS CLI
-- kubectl
-- Helm
-- AWS credentials
-- EKS kubeconfig
-- GitHub repository access
-
-Jenkins uses the following Kubernetes configuration:
-
-```text
-/var/jenkins_home/.kube/config
-```
-
-The Jenkins container was verified to successfully access the EKS cluster using:
-
-```bash
-kubectl get nodes
-```
-
-Pipeline flow:
-
-```text
-GitHub
-    |
-    v
-Jenkins
-    |
-    v
-Docker Build
-    |
-    v
-Amazon ECR
-    |
-    v
-Helm Upgrade
-    |
-    v
-Amazon EKS
-    |
-    v
-Kubernetes Deployment
-    |
-    v
-AWS Application Load Balancer
-```
+The pipeline then deploys that exact image version to EKS using Helm.
 
 The Jenkins pipeline completed successfully, including Docker build, ECR push, EKS configuration, Helm deployment, and deployment verification.
+
 ### Jenkins Pipeline Success
 
 ![Jenkins Pipeline Success](screenshots/jenkins-pipeline-success.png)
 
-# Verification Commands
+---
 
-Check application pods:
+# GitOps Deployment with GitHub Actions and Argo CD
+
+A separate branch named:
+
+```text
+gitops
+```
+
+implements the GitOps deployment workflow required by the project.
+
+The GitOps architecture separates Continuous Integration from Continuous Deployment.
+
+```text
+GitHub Actions = CI
+Argo CD = CD
+```
+
+---
+
+# GitHub Actions CI
+
+The GitHub Actions workflow is located at:
+
+```text
+.github/workflows/gitops-ci.yml
+```
+
+The workflow runs when application, Helm, or workflow files are changed on the `gitops` branch.
+
+The workflow performs:
+
+```text
+Checkout Repository
+↓
+Authenticate to AWS using OIDC
+↓
+Login to Amazon ECR
+↓
+Build Docker Image
+↓
+Push Docker Image to ECR
+↓
+Update Helm Image Tag
+↓
+Commit Updated Tag to gitops Branch
+```
+
+Docker images use the Git commit SHA as the image tag.
+
+Example:
+
+```text
+Git commit:
+c70560d
+
+↓
+
+Docker image:
+aws-eks-cicd-pipeline:c70560d
+```
+
+The Helm values file is then updated with the new image tag.
+
+GitHub Actions does not directly deploy the application to Kubernetes.
+
+Instead, Git becomes the source of truth for the desired application state.
+
+### GitHub Actions CI Success
+
+![GitHub Actions GitOps CI Success](screenshots/github-actions-gitops-ci-success.png)
+
+---
+
+# GitHub Actions AWS Authentication
+
+GitHub Actions authenticates to AWS using OpenID Connect instead of storing long-lived AWS access keys in GitHub.
+
+The IAM role used is:
+
+```text
+GitHubActionsECRRole
+```
+
+The workflow receives permission to assume the AWS role using:
+
+```text
+sts:AssumeRoleWithWebIdentity
+```
+
+The role allows GitHub Actions to authenticate to Amazon ECR and push application images.
+
+This provides short-lived AWS credentials for the CI workflow.
+
+---
+
+# Argo CD Continuous Deployment
+
+Argo CD is installed inside the EKS cluster in the:
+
+```text
+argocd
+```
+
+namespace.
+
+Argo CD monitors the private GitHub repository and tracks:
+
+```text
+Repository:
+https://github.com/yonatanret1-star/aws-eks-cicd-pipeline.git
+
+Branch:
+gitops
+
+Path:
+helm/hello-world
+```
+
+The Argo CD application is named:
+
+```text
+hello-world-gitops
+```
+
+Deployment destination:
+
+```text
+Cluster:
+in-cluster
+
+Namespace:
+default
+```
+
+Automatic synchronization is enabled.
+
+The following GitOps options are enabled:
+
+```text
+Auto-Sync
+Prune Resources
+Self Heal
+```
+
+This means:
+
+- **Auto-Sync** automatically applies changes from Git.
+- **Prune Resources** removes Kubernetes resources that were removed from Git.
+- **Self Heal** restores Kubernetes resources if the live cluster is manually changed and no longer matches Git.
+
+---
+
+# Argo CD Repository Connection
+
+The private GitHub repository is connected to Argo CD using repository credentials.
+
+Argo CD successfully authenticated to the repository and can monitor the `gitops` branch.
+
+### Repository Connection
+
+![Argo CD Repository Success](screenshots/argocd-repository-success.png)
+
+---
+
+# Argo CD Deployment Status
+
+After GitHub Actions updates the Helm image tag, Argo CD detects the Git change and automatically synchronizes the application to Amazon EKS.
+
+The final Argo CD application status is:
+
+```text
+Healthy
+Synced
+```
+
+### Argo CD Healthy and Synced
+
+![Argo CD Healthy and Synced](screenshots/argocd-healthy-synced.png)
+
+---
+
+# End-to-End GitOps Test
+
+To verify the full GitOps pipeline, the application response was changed from:
+
+```text
+Hello, World!
+```
+
+to:
+
+```text
+Hello from GitOps!
+```
+
+The application change was committed and pushed to the `gitops` branch.
+
+This triggered GitHub Actions.
+
+GitHub Actions:
+
+1. Built a new Docker image.
+2. Tagged the image using the Git commit SHA.
+3. Pushed the image to Amazon ECR.
+4. Updated the Helm image tag.
+5. Committed the updated Helm value back to the `gitops` branch.
+
+Argo CD then:
+
+1. Detected the updated Git state.
+2. Compared Git with the live EKS cluster.
+3. Automatically synchronized the Helm deployment.
+4. Rolled out the new application image.
+5. Reported the application as Healthy and Synced.
+
+The AWS Application Load Balancer then served the new application version publicly.
+
+### Public GitOps Deployment
+
+![GitOps Public Application](screenshots/gitops-public-app-success.png)
+
+The successful response:
+
+```text
+Hello from GitOps!
+```
+
+proves the complete GitOps CI/CD workflow operated successfully.
+
+---
+
+# Complete GitOps Workflow
+
+```text
+Developer Changes Application
+        ↓
+Push to gitops Branch
+        ↓
+GitHub Actions
+        ↓
+Authenticate to AWS using OIDC
+        ↓
+Build Docker Image
+        ↓
+Push Image to Amazon ECR
+        ↓
+Update Helm Image Tag
+        ↓
+Commit Desired State to Git
+        ↓
+Argo CD Detects Git Change
+        ↓
+Argo CD Automatically Syncs
+        ↓
+Amazon EKS Deploys New Image
+        ↓
+AWS Application Load Balancer
+        ↓
+Updated Public Application
+```
+
+---
+
+# Jenkins vs GitOps Deployment
+
+## Jenkins Pipeline
+
+```text
+GitHub
+↓
+Jenkins
+↓
+Docker Build
+↓
+Amazon ECR
+↓
+Helm
+↓
+Amazon EKS
+```
+
+Jenkins directly performs the deployment to EKS.
+
+## GitOps Pipeline
+
+```text
+GitHub
+↓
+GitHub Actions
+↓
+Amazon ECR
+↓
+Git Desired State
+↓
+Argo CD
+↓
+Amazon EKS
+```
+
+GitHub Actions handles CI while Argo CD handles CD.
+
+Argo CD uses Git as the source of truth instead of GitHub Actions directly deploying to the Kubernetes cluster.
+
+---
+
+# Verification
+
+Useful Kubernetes verification commands:
+
+```bash
+kubectl get nodes
+```
 
 ```bash
 kubectl get pods
 ```
 
-Check application pods and their worker nodes:
-
 ```bash
-kubectl get pods -o wide
+kubectl get deployment hello-world
 ```
 
-Check EKS worker nodes:
-
 ```bash
-kubectl get nodes
+kubectl get service
 ```
-
-Check Horizontal Pod Autoscaler:
-
-```bash
-kubectl get hpa
-```
-
-Check Cluster Autoscaler:
-
-```bash
-kubectl get pods -n kube-system | grep cluster-autoscaler
-```
-
-Check AWS Load Balancer Controller:
-
-```bash
-kubectl get pods \
-  -n kube-system \
-  | grep aws-load-balancer-controller
-```
-
-Check the application ingress:
 
 ```bash
 kubectl get ingress
 ```
 
-# Screenshots
-
-The project screenshots are stored in the `screenshots/` directory.
-
-Current screenshots include:
-
-```text
-npm-start-success.png
-hello-world-localhost.png
-docker-container-running.png
-hello-world-docker-browser.png
-github-repository-initial-push.png
-ecr-docker-push-success.png
-ecr-repository-image.png
-hpa-working.png
-cluster-autoscaler-scale-out.png
-cluster-autoscaler-pods-distributed.png
-alb-ingress-success.png
-hello-world-alb-public-url.png
+```bash
+kubectl get hpa
 ```
 
-These screenshots demonstrate:
+```bash
+kubectl top nodes
+```
 
-- Local Node.js application execution
-- Local browser access
-- Docker container execution
-- Dockerized browser access
-- GitHub repository creation
-- Amazon ECR image push
-- Amazon ECR repository storage
-- Kubernetes HPA operation
-- EKS worker node autoscaling
-- Kubernetes pod distribution
-- ALB ingress configuration
-- Public application access
+```bash
+kubectl top pods
+```
+
+Verify the deployed image:
+
+```bash
+kubectl get deployment hello-world \
+  -n default \
+  -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
+
+Verify Argo CD:
+
+```bash
+kubectl get pods -n argocd
+```
+
+---
+
+# Screenshots
+
+Project evidence includes screenshots demonstrating:
+
+- Local Node.js application
+- Local Docker container
+- Dockerized application
+- Private GitHub repository
+- Docker image pushed to ECR
+- ECR repository image
+- Horizontal Pod Autoscaler
+- Cluster Autoscaler scale-out
+- Pods distributed across multiple worker nodes
+- ALB Ingress
+- Public AWS application
+- Jenkins pipeline success
+- GitHub Actions GitOps CI success
+- Argo CD private repository connection
+- Argo CD Healthy and Synced application
+- Public GitOps application deployment
+
+---
+
+# Key Project Outcomes
+
+This project demonstrates:
+
+- Infrastructure provisioning with Terraform
+- Containerization with Docker
+- Container storage using Amazon ECR
+- Kubernetes orchestration with Amazon EKS
+- Kubernetes package management with Helm
+- Pod autoscaling using HPA
+- Worker-node autoscaling using Cluster Autoscaler
+- IAM Roles for Service Accounts
+- Public application routing through an AWS ALB
+- Jenkins CI/CD
+- GitHub Actions CI
+- AWS authentication using GitHub OIDC
+- GitOps continuous deployment with Argo CD
+- Private Git repository integration with Argo CD
+- Automated synchronization between Git and Amazon EKS
+- End-to-end deployment verification
+
+---
+
+# Repository Access
+
+This project repository is private as required by the challenge.
+
+Repository:
+
+```text
+https://github.com/yonatanret1-star/aws-eks-cicd-pipeline
+```
+
+Access can be provided to the mentor through GitHub repository collaborator permissions.
+
+---
 
 # Cleanup
 
-Remove the application from Kubernetes:
+AWS resources created by this project may generate charges.
 
-```bash
-helm uninstall hello-world
-```
-
-Remove the temporary autoscaling test deployment if it exists:
-
-```bash
-kubectl delete deployment autoscaler-test
-```
-
-Destroy the Terraform-managed infrastructure:
+Terraform-managed resources can be removed with:
 
 ```bash
 cd terraform
 terraform destroy
 ```
 
-Review the Terraform destroy plan before confirming the destruction of AWS resources.
+Additional resources created outside Terraform, including Kubernetes workloads, load balancers, IAM policies, IAM roles, Argo CD resources, and other manually created AWS resources, should also be reviewed and removed when the project is no longer needed.
 
-# Key Project Outcomes
+---
 
-This project demonstrates:
+# Final Result
 
-- Infrastructure as Code using Terraform
-- Docker containerization
-- Amazon ECR image storage
-- Amazon EKS cluster deployment
-- Kubernetes application deployment
-- Helm package management
-- Horizontal Pod Autoscaling
-- EKS worker node autoscaling
-- IAM integration using IRSA
-- AWS Application Load Balancer integration
-- Public application access
-- Jenkins CI/CD configuration
-- GitHub version control
+The project successfully implements two container deployment workflows:
 
-# Repository Access
+```text
+Jenkins CI/CD
+```
 
-This repository is private and is shared with the project mentor for review.
+and:
+
+```text
+GitHub Actions CI + Argo CD GitOps CD
+```
+
+The final GitOps workflow automatically builds, stores, and deploys application changes from GitHub to Amazon EKS while maintaining Git as the source of truth.
+
+Final verified application response:
+
+```text
+Hello from GitOps!
+```
