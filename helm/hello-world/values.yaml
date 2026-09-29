@@ -9,7 +9,7 @@ replicaCount: 1
 image:
   repository: 678817681968.dkr.ecr.us-east-1.amazonaws.com/aws-eks-cicd-pipeline
   pullPolicy: IfNotPresent
-  tag: 9befeb0
+  tag: c70560d
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
